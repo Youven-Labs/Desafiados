@@ -1,3 +1,4 @@
+import { AuthProvider } from "@/contexts/AuthContext";
 import "./globals.css";
 
 import type { Metadata } from "next"
@@ -18,7 +19,9 @@ export default function RootLayout({
     <html lang="en">
 
       <body className="antialiased">
+        <AuthProvider>
         {children}
+        </AuthProvider>
         <footer className="w-full py-4 text-center text-sm text-gray-500 bg-gray-50 border-t border-gray-200">
           © 2025 Youven Labs. Todos los derechos reservados.
         </footer>
