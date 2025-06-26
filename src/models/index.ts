@@ -10,3 +10,23 @@ export interface User {
   createdAt?: string
   avatarUrl?: string
 }
+
+
+export interface Group {
+  id: string
+  name: string
+  description?: string
+  admin: string
+  createdAt: string
+  inviteCode: string
+  membersCount?: number
+  activeChallenges?: number
+}
+
+export interface UserGroupMembership {
+  userId: string
+  groupId: string
+  role: "admin" | "member"
+  joinedAt: string
+  points: number
+}

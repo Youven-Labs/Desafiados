@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, username: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -86,6 +86,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     })
+
+    if (error || !data.user) {
+      return { error }
+    }
+
+    // Create user row in the database
+
+    const { error: userError } = await supabase
+      .from("users")
+      .insert(
+        [
+          { 
+            id: data.user.id, 
+            username: username,
+            email: data.user.email
+          }
+        ]
+      )
+      .select() 
+      .single()
+
+    if (userError) {
+      console.error("Error creating user row:", userError)
+      return { error: userError }
+    }
+
     return { error }
   }
 
