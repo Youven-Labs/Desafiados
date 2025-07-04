@@ -31,24 +31,30 @@ export default function SignUpPage() {
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("SignUpPage: handleSubmit called")
     e.preventDefault()
     setLoading(true)
     setError("")
 
     if (password.length < 6) {
+      console.log("SignUpPage: Password validation failed")
       setError("Password must be at least 6 characters long")
       setLoading(false)
       return
     }
 
+    console.log("SignUpPage: Calling signUp with email, password, username")
     const { error } = await signUp(email, password, username)
 
     if (error) {
+      console.error("SignUpPage: Error during sign up", error)
       setError(error.message)
     } else {
+      console.log("SignUpPage: Sign up successful, redirecting to verify email")
       setSuccess(true)
     }
 
+    console.log("SignUpPage: Setting loading to false")
     setLoading(false)
   }
 

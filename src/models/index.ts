@@ -30,3 +30,39 @@ export interface UserGroupMembership {
   joinedAt: string
   points: number
 }
+
+export interface Challenge {
+  id: string
+  groupId: string
+  title: string
+  description?: string
+  createdBy: string
+  createdAt: string
+  startDate: string
+  endDate: string
+  points: number
+  status: "active" | "completed" | "rejected" | "pending"
+  participantsCount?: number
+  completedCount?: number
+}
+
+
+export interface ChallengeSubmission {
+  id: string
+  userId: string
+  challengeId: string
+  submittedAt: string
+  submittedProof: boolean
+  proofUrl?: string
+  approved?: boolean
+  approvedAt?: string
+  pointsEarned: number
+}
+
+export interface Vote {
+  id: string
+  challengeId: string
+  userId: string
+  approved: boolean // true for approve, false for reject
+  votedAt: string
+}

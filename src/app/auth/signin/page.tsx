@@ -29,18 +29,23 @@ export default function SignInPage() {
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("SignInPage: handleSubmit called")
     e.preventDefault()
     setLoading(true)
     setError("")
 
+    console.log("SignInPage: Validating email and password")
     const { error } = await signIn(email, password)
 
     if (error) {
+      console.error("SignInPage: Error during sign in", error)
       setError(error.message)
     } else {
+      console.log("SignInPage: Sign in successful, redirecting to dashboard")
       router.push("/dashboard")
     }
-
+    
+    console.log("SignInPage: Setting loading to false")
     setLoading(false)
   }
 

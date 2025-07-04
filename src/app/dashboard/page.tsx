@@ -34,7 +34,7 @@ import { Textarea } from "@/components/textarea"
 
 import { useAuth } from "@/contexts/AuthContext"
 
-import { getUserGroups } from "@/lib/db/groups"
+import { createGroup, getUserGroups, joinGroup } from "@/lib/db/groups"
 
 import { Plus, Users, Trophy, Activity, MoreVertical, Copy, LogOut, Settings, UserPlus } from "lucide-react"
 
@@ -43,6 +43,7 @@ import Link from "next/link"
 import { Group } from "@/models/index" 
 
 import { useEffect } from "react"
+import { createInviteCode } from "@/lib/utils"
 
 export default function GroupsDashboard() {
   const { user } = useAuth()
@@ -69,28 +70,95 @@ export default function GroupsDashboard() {
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return
 
+    console.log("Creating new group:", newGroupName, newGroupDescription)
+    console.log("User ID:", user.id)
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Creating group:", { name: newGroupName, description: newGroupDescription })
-      setNewGroupName("")
-      setNewGroupDescription("")
-      setShowCreateDialog(false)
+
+    const newGroup: Group = {
+      id: crypto.randomUUID(), 
+      name: newGroupName,
+      description: newGroupDescription,
+      admin: user.id,
+      createdAt: new Date().toISOString(),
+      inviteCode: createInviteCode(),
+      membersCount: 1, // Admin is the first member
+      activeChallenges: 0, // No challenges yet
+    }
+
+    console.log("New group object:", newGroup)
+
+    // Add a timeout to the entire operation
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("Operation timed out")), 20000)
+    );
+
+    try {
+      const createdGroup = await Promise.race([
+        createGroup(newGroup),
+        timeoutPromise
+      ]);
+      
+      console.log("Group created successfully:", createdGroup)
+      
+      if (createdGroup) {
+        setUserGroups((prev) => [...prev, createdGroup])
+        setNewGroupName("")
+        setNewGroupDescription("")
+        setShowCreateDialog(false)
+        alert(`Successfully created "${createdGroup.name}"!`)
+      } else {
+        console.error("Group creation returned null")
+        alert("Failed to create group. Please check your database connection and try again.")
+      }
+    } catch (error) {
+      console.error("Error creating group:", error)
+      
+      if (error instanceof Error && error.message.includes("timed out")) {
+        alert("The operation timed out. Please check your internet connection and try again.")
+      } else if (error instanceof Error && error.message.includes("Database connection failed")) {
+        alert("Database connection failed. Please check your configuration.")
+      } else {
+        alert("An unexpected error occurred while creating the group. Please try again.")
+      }
+    } finally {
+      console.log("Finished creating group")
       setLoading(false)
-    }, 1000)
+    }
   }
 
   const handleJoinGroup = async () => {
     if (!joinCode.trim()) return
 
+    console.log("Joining group with code:", joinCode)
+    console.log("User ID:", user.id)
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Joining group with code:", joinCode)
-      setJoinCode("")
-      setShowJoinDialog(false)
+
+    try {
+      const joinedGroup = await joinGroup(user.id, joinCode.trim())
+      console.log("Group joined successfully:", joinedGroup)
+      
+      if (joinedGroup) {
+        // Check if group is already in the list (in case user was already a member)
+        const groupExists = userGroups.some(group => group.id === joinedGroup.id)
+        
+        if (!groupExists) {
+          setUserGroups((prev) => [...prev, joinedGroup])
+        }
+        
+        setJoinCode("")
+        setShowJoinDialog(false)
+        alert(`Successfully joined "${joinedGroup.name}"!`)
+      } else {
+        console.error("Group join returned null")
+        alert("Failed to join group. Please check the invite code and try again.")
+      }
+    } catch (error) {
+      console.error("Error joining group:", error)
+      alert("An unexpected error occurred while joining the group. Please try again.")
+    } finally {
+      console.log("Finished joining group")
       setLoading(false)
-    }, 1000)
+    }
   }
 
   const handleCopyInviteCode = (code: string) => {

@@ -16,6 +16,8 @@ export const getUserById = async (userId: string) => {
     return null;
   }
 
+  
+
   return data;
 };
 
