@@ -303,7 +303,7 @@ export default function GroupDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {leaderboard.map((member, index) => (
-                    <div key={ member.username } className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div key={member.id || member.userId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm">
                           {index + 1}
@@ -312,8 +312,9 @@ export default function GroupDashboard() {
                           <AvatarImage src={member.avatarUrl || "/placeholder.svg"} />
                           <AvatarFallback>{member.username?.charAt(0)}</AvatarFallback>
                         </Avatar>
+                        
                         <div>
-                          <p className="font-medium">{member.username}</p>
+                          <p className="font-medium text-black">{member.username}</p>
                           {member.id === group.admin && (
                             <Badge variant="secondary" className="text-xs">
                               Admin
