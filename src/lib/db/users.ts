@@ -37,4 +37,3 @@ export const createUserWithUsername= async (userId: string, username: string) =>
 
   return data;
 };
-

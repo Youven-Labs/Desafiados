@@ -45,17 +45,13 @@ export function VotingModal({ isOpen, onClose, title, description, votes, onVote
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>👍 Approve: {approveVotes}</span>
-            <span>👎 Reject: {rejectVotes}</span>
-          </div>
 
           {totalVotes > 0 && (
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -80,13 +76,13 @@ export function VotingModal({ isOpen, onClose, title, description, votes, onVote
                 <ThumbsDown className="w-4 h-4 mr-2" />
                 Reject
               </Button>
-              <Button onClick={() => handleVote(true)} disabled={isVoting} className="flex-1">
+              <Button variant="outline" onClick={() => handleVote(true)} disabled={isVoting} className="flex-1">
                 <ThumbsUp className="w-4 h-4 mr-2" />
                 Approve
               </Button>
             </>
           )}
-          <Button variant="secondary" onClick={onClose} className="flex-1">
+          <Button variant="outline" onClick={onClose} className="flex-1">
             Close
           </Button>
         </DialogFooter>

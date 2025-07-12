@@ -16,24 +16,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs"
 import { useAuth } from "@/contexts/AuthContext"
 import { Plus, Trophy, Activity, Users, ArrowLeft, Settings } from "lucide-react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 
 import { getGroupChallenges, getChallengeVotes, getGroupById, getGroupMembership, getAllGroupMemberShips } from "@/lib/db/groups"
 import { getUserById } from "@/lib/db/users"
+import { addVoteToChallenge, getChallengeById } from "@/lib/db/challenges"
 
 import { User, Group, Challenge, UserGroupMembership } from "@/models"
 
 export default function GroupDashboard() {
   const { user } = useAuth()
+  const router = useRouter()
   const params = useParams()
   const groupId = params.groupid as string
 
+  const [isLoadingInitialData, setIsLoadingInitialData] = useState(true)
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [group, setGroup] = useState<Group | null>(null)
   const [userData, setUserData] = useState<User | null>(null)
   const [userMembership, setUserMembership] = useState<UserGroupMembership | null>(null)
   const [groupMemberShips, setGroupMemberShips] = useState<UserGroupMembership[]>([])
   const [membersData, setMembersData] = useState<User[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true)
 
   useEffect(() => {
     // Fetch group data and challenges when component mounts
@@ -49,6 +53,7 @@ export default function GroupDashboard() {
         }
     }
     fetchGroupData()
+    setIsLoadingInitialData(false)
   }, [groupId])
 
   useEffect(() => {
@@ -80,33 +85,67 @@ export default function GroupDashboard() {
     const fetchGroupMemberships = async () => {
         if (groupId) {
             try {
+                setIsLoadingMembers(true)
                 const memberships = await getAllGroupMemberShips(groupId)
                 setGroupMemberShips(memberships)
+                
+                // Fetch members data immediately after getting memberships
+                if (memberships.length > 0) {
+                  try {
+                    const members = await Promise.all(
+                      memberships.map((membership) => getUserById(membership.userId))
+                    )
+                    setMembersData(members)
+                  } catch (error) {
+                    console.error("Error fetching members data:", error)
+                  }
+                }
+                setIsLoadingMembers(false)
             } catch (error) {
                 console.error("Error fetching group memberships:", error)
+                setIsLoadingMembers(false)
             }
         }
-    }
-
-    // Fetch all members' data for leaderboard
-    const fetchMembersData = async () => {
-      if (groupMemberShips.length > 0) {
-        try {
-          const members = await Promise.all(
-            groupMemberShips.map((membership) => getUserById(membership.userId))
-          )
-          setMembersData(members)
-        } catch (error) {
-          console.error("Error fetching members data:", error)
-        }
-      }
     }
 
     fetchUserData()
     fetchUserMembership()
     fetchGroupMemberships()
-    fetchMembersData()
   }, [user, groupId])
+
+  // Separate useEffect to handle members data fetching when groupMemberShips changes
+  useEffect(() => {
+    const fetchMembersData = async () => {
+      if (groupMemberShips.length > 0) {
+        try {
+          setIsLoadingMembers(true)
+          const members = await Promise.all(
+            groupMemberShips.map((membership) => getUserById(membership.userId))
+          )
+          setMembersData(members)
+          setIsLoadingMembers(false)
+        } catch (error) {
+          console.error("Error fetching members data:", error)
+          setIsLoadingMembers(false)
+        }
+      }
+    }
+
+    fetchMembersData()
+  }, [groupMemberShips])
+
+  if (isLoadingInitialData || isLoadingMembers) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Loading Group Data...</h1>
+            <p className="text-muted-foreground">Please wait while we fetch the latest information.</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
 
   if (!user || !group) {
     return (
@@ -142,7 +181,31 @@ export default function GroupDashboard() {
 
   const handleVoteOnChallenge = (challengeId: string, vote: boolean) => {
     console.log(`Voting ${vote} on challenge ${challengeId}`)
-    // In a real app, this would make an API call
+    if (!user || !userMembership) {
+      console.error("User not authenticated or membership not found")
+      return
+    }
+    addVoteToChallenge(challengeId, user.id, vote)
+      .then(() => {
+        console.log("Vote added successfully")
+        // Refresh the challenge i voted for and set state, get the data for that challenge again frrom the server
+        getChallengeById(challengeId)
+          .then((challenge) => {
+            setChallenges((prevChallenges) =>
+              prevChallenges.map((c) => (c.id === challengeId ? challenge : c))
+            )
+          })
+          .catch((error) => {
+            console.error("Error refreshing challenge data:", error)
+          })
+      })
+      .catch((error) => {
+        console.error("Error adding vote:", error)
+      })
+  }
+
+  const handleViewChallenge = (challengeId: string) => {
+    router.push(`/groups/${groupId}/challenges/${challengeId}`)
   }
 
   return (
@@ -273,6 +336,7 @@ export default function GroupDashboard() {
                       key={challenge.id}
                       challenge={challenge}
                       currentUserId={user.id}
+                      onViewChallenge={handleViewChallenge}
                     />
                   ))}
                 </div>
@@ -301,34 +365,55 @@ export default function GroupDashboard() {
                 <CardDescription>Points earned by completing challenges in {group.name}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {leaderboard.map((member, index) => (
-                    <div key={member.id || member.userId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center space-x-3">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm">
-                          {index + 1}
+                {isLoadingMembers ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 animate-pulse">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-300"></div>
+                          <div className="h-10 w-10 rounded-full bg-gray-300"></div>
+                          <div className="space-y-2">
+                            <div className="h-4 w-20 bg-gray-300 rounded"></div>
+                            <div className="h-3 w-12 bg-gray-300 rounded"></div>
+                          </div>
                         </div>
-                        <Avatar className="h-10 w-10">
-                          <AvatarImage src={member.avatarUrl || "/placeholder.svg"} />
-                          <AvatarFallback>{member.username?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        
-                        <div>
-                          <p className="font-medium text-black">{member.username}</p>
-                          {member.id === group.admin && (
-                            <Badge variant="secondary" className="text-xs">
-                              Admin
-                            </Badge>
-                          )}
+                        <div className="text-right">
+                          <div className="h-6 w-8 bg-gray-300 rounded"></div>
+                          <div className="h-3 w-12 bg-gray-300 rounded mt-1"></div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg">{member.points}</p>
-                        <p className="text-xs text-muted-foreground">points</p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {leaderboard.map((member, index) => (
+                      <div key={member.id || member.userId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-sm">
+                            {index + 1}
+                          </div>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={member.avatarUrl || "/placeholder.svg"} />
+                            <AvatarFallback>{member.username?.charAt(0)?.toUpperCase() || '?'}</AvatarFallback>
+                          </Avatar>
+                          
+                          <div>
+                            <p className="font-medium text-black">{member.username || 'Unknown User'}</p>
+                            {member.id === group.admin && (
+                              <Badge variant="secondary" className="text-xs">
+                                Admin
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{member.points || 0}</p>
+                          <p className="text-xs text-muted-foreground">points</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

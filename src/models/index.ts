@@ -42,7 +42,6 @@ export interface Challenge {
   endDate: string
   points: number
   status: "active" | "completed" | "rejected" | "pending"
-  participantsCount?: number
   completedCount?: number
 }
 

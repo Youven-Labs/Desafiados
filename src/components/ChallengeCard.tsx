@@ -20,9 +20,10 @@ interface ChallengeCardProps {
   challenge: Challenge
   currentUserId: string
   onVote?: (challengeId: string, vote: boolean) => void
+  onViewChallenge?: (challengeId: string) => void
 }
 
-export function ChallengeCard({ challenge, currentUserId, onVote}: ChallengeCardProps) {
+export function ChallengeCard({ challenge, currentUserId, onVote, onViewChallenge}: ChallengeCardProps) {
   const [showVoting, setShowVoting] = useState(false)
   const [votes, setVotes] = useState<Vote[]>([])
   const [creatorData, setCreatorData] = useState<User | null>(null)
@@ -105,9 +106,9 @@ export function ChallengeCard({ challenge, currentUserId, onVote}: ChallengeCard
             </Button>
           )}
 
-          {challenge.status === "active" && isParticipant && (
-            <Button variant="outline" size="sm">
-              Submit Proof
+          {challenge.status === "active" && (
+            <Button variant="outline" size="sm" onClick={() => onViewChallenge?.(challenge.id)}>
+              View Challenge
             </Button>
           )}
 
