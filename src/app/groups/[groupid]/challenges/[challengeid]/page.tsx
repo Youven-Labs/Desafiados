@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs"
 import { Input } from "@/components/input"
 import { Textarea } from "@/components/textarea"
 import { VotingModal } from "@/components/VotingModal"
+import { Alert, AlertDescription } from "@/components/alert"
 import { useAuth } from "@/contexts/AuthContext"
 import { 
   ArrowLeft, 
@@ -39,11 +40,12 @@ import {
   addVoteToChallenge, 
   getChallengeSubmissions,
   createChallengeSubmission,
-  getUserSubmissionForChallenge
+  getUserSubmissionForChallenge,
+  updateSubmissionApproval
 } from "@/lib/db/challenges"
-import { getChallengeVotes, getGroupById } from "@/lib/db/groups"
+import { getChallengeVotes, getGroupById, getGroupMembership } from "@/lib/db/groups"
 import { getUserById } from "@/lib/db/users"
-import { Challenge, Vote, User, Group, ChallengeSubmission } from "@/models"
+import { Challenge, Vote, User, Group, ChallengeSubmission, UserGroupMembership } from "@/models"
 import { randomUUID } from "crypto"
 
 interface ChallengeSubmissionExtended extends ChallengeSubmission {
@@ -63,9 +65,12 @@ export default function ChallengeDetailsPage() {
   const [votes, setVotes] = useState<Vote[]>([])
   const [submissions, setSubmissions] = useState<ChallengeSubmissionExtended[]>([])
   const [userSubmission, setUserSubmission] = useState<ChallengeSubmission | null>(null)
+  const [userMembership, setUserMembership] = useState<UserGroupMembership | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showVoting, setShowVoting] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [processingSubmissions, setProcessingSubmissions] = useState<Set<string>>(new Set())
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Submission form state
   const [proofUrl, setProofUrl] = useState("")
@@ -106,6 +111,10 @@ export default function ChallengeDetailsPage() {
         if (user?.id) {
           const userSub = await getUserSubmissionForChallenge(user.id, challengeId)
           setUserSubmission(userSub)
+          
+          // Check user's membership role in the group
+          const membership = await getGroupMembership(user.id, groupId)
+          setUserMembership(membership)
         }
 
       } catch (error) {
@@ -137,6 +146,7 @@ export default function ChallengeDetailsPage() {
     if (!user?.id || !challenge || !proofUrl.trim()) return
 
     setIsSubmitting(true)
+    
     try {
       const newSubmission: ChallengeSubmission = {
         id: crypto.randomUUID(),
@@ -170,6 +180,64 @@ export default function ChallengeDetailsPage() {
       console.error("Error submitting proof:", error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleApproveSubmission = async (submissionId: string) => {
+    if (!challenge) return
+    
+    setProcessingSubmissions(prev => new Set(prev).add(submissionId))
+    
+    try {
+      await updateSubmissionApproval(submissionId, true, challenge.points)
+      
+      // Refresh submissions
+      const submissionsData = await getChallengeSubmissions(challengeId)
+      const submissionsWithUsers = await Promise.all(
+        submissionsData.map(async (submission) => {
+          const userData = await getUserById(submission.userId)
+          return { ...submission, user: userData }
+        })
+      )
+      setSubmissions(submissionsWithUsers)
+      setSuccessMessage(`Submission approved! Points awarded: ${challenge.points}`)
+      setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (error) {
+      console.error("Error approving submission:", error)
+    } finally {
+      setProcessingSubmissions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(submissionId)
+        return newSet
+      })
+    }
+  }
+
+  const handleRejectSubmission = async (submissionId: string) => {
+    setProcessingSubmissions(prev => new Set(prev).add(submissionId))
+    
+    try {
+      await updateSubmissionApproval(submissionId, false, 0)
+      
+      // Refresh submissions
+      const submissionsData = await getChallengeSubmissions(challengeId)
+      const submissionsWithUsers = await Promise.all(
+        submissionsData.map(async (submission) => {
+          const userData = await getUserById(submission.userId)
+          return { ...submission, user: userData }
+        })
+      )
+      setSubmissions(submissionsWithUsers)
+      setSuccessMessage("Submission rejected successfully")
+      setTimeout(() => setSuccessMessage(null), 5000)
+    } catch (error) {
+      console.error("Error rejecting submission:", error)
+    } finally {
+      setProcessingSubmissions(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(submissionId)
+        return newSet
+      })
     }
   }
 
@@ -215,6 +283,9 @@ export default function ChallengeDetailsPage() {
   const daysLeft = getDaysUntilDeadline()
   const isExpired = daysLeft < 0
   const approvedSubmissions = submissions.filter(s => s.approved === true)
+  const pendingSubmissions = submissions.filter(s => s.approved === null || s.approved === undefined)
+  const rejectedSubmissions = submissions.filter(s => s.approved === false)
+  const isAdmin = userMembership?.role === "admin" || group?.admin === user?.id
 
   if (isLoading) {
     return (
@@ -257,6 +328,16 @@ export default function ChallengeDetailsPage() {
             {group.name} / Challenges
           </div>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              {successMessage}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Challenge Header */}
         <Card>
@@ -379,10 +460,86 @@ export default function ChallengeDetailsPage() {
           </Card>
         )}
 
+        {/* Admin Panel for Pending Submissions */}
+        {isAdmin && challenge.status === "active" && pendingSubmissions.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5" />
+                Admin Panel - Pending Submissions
+              </CardTitle>
+              <CardDescription>
+                Review and approve submissions from group members
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {pendingSubmissions.map((submission) => (
+                    <div key={submission.id} className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={submission.user?.avatarUrl} />
+                            <AvatarFallback>{submission.user?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{submission.user?.username}</div>
+                            <div className="text-sm text-gray-600">
+                              Submitted {formatDateTime(submission.submittedAt)}
+                            </div>
+                            {submission.proofUrl && (
+                              <a 
+                                href={`//${submission.proofUrl}`} 
+                                target="_blank"
+                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mt-1"
+                              >
+                                <FileImage className="w-4 h-4" />
+                                View Proof
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleApproveSubmission(submission.id)}
+                            disabled={processingSubmissions.has(submission.id)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            {processingSubmissions.has(submission.id) ? "Approving..." : `Approve (${challenge.points} pts)`}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRejectSubmission(submission.id)}
+                            disabled={processingSubmissions.has(submission.id)}
+                            className="border-red-600 text-red-600 hover:bg-red-50"
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            {processingSubmissions.has(submission.id) ? "Rejecting..." : "Reject"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="submissions">Submissions</TabsTrigger>
+            <TabsTrigger value="submissions" className="relative">
+              Submissions
+              {isAdmin && pendingSubmissions.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {pendingSubmissions.length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
           </TabsList>
 
@@ -476,7 +633,7 @@ export default function ChallengeDetailsPage() {
                 <CardTitle>Challenge Statistics</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className={`grid grid-cols-2 gap-4 ${isAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">{submissions.length}</div>
                     <div className="text-sm text-gray-600">Total Submissions</div>
@@ -485,6 +642,12 @@ export default function ChallengeDetailsPage() {
                     <div className="text-2xl font-bold text-green-600">{approvedSubmissions.length}</div>
                     <div className="text-sm text-gray-600">Approved</div>
                   </div>
+                  {isAdmin && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-600">{pendingSubmissions.length}</div>
+                      <div className="text-sm text-gray-600">Pending Review</div>
+                    </div>
+                  )}
                   <div className="text-center">
                     <div className="text-2xl font-bold text-orange-600">{challenge.points}</div>
                     <div className="text-sm text-gray-600">Points Reward</div>
@@ -525,13 +688,20 @@ export default function ChallengeDetailsPage() {
                           </div>
                         </div>
                         <div className="text-right space-y-2">
-                          <Badge variant={
-                            submission.approved === true ? "default" : 
-                            submission.approved === false ? "destructive" : "secondary"
-                          }>
-                            {submission.approved === true ? "Approved" : 
-                             submission.approved === false ? "Rejected" : "Pending"}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={
+                              submission.approved === true ? "default" : 
+                              submission.approved === false ? "destructive" : "secondary"
+                            }>
+                              {submission.approved === true ? "Approved" : 
+                               submission.approved === false ? "Rejected" : "Pending"}
+                            </Badge>
+                            {submission.approved === true && (
+                              <span className="text-sm text-green-600 font-medium">
+                                +{submission.pointsEarned} pts
+                              </span>
+                            )}
+                          </div>
                           {submission.proofUrl && (
                             <a 
                               href={`//${submission.proofUrl}`} 
@@ -542,6 +712,29 @@ export default function ChallengeDetailsPage() {
                               View Proof
                               <ExternalLink className="w-3 h-3" />
                             </a>
+                          )}
+                          {isAdmin && submission.approved === undefined && (
+                            <div className="flex gap-2 mt-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveSubmission(submission.id)}
+                                disabled={processingSubmissions.has(submission.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                {processingSubmissions.has(submission.id) ? "Approving..." : "Approve"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRejectSubmission(submission.id)}
+                                disabled={processingSubmissions.has(submission.id)}
+                                className="border-red-600 text-red-600 hover:bg-red-50"
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                {processingSubmissions.has(submission.id) ? "Rejecting..." : "Reject"}
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
