@@ -16,7 +16,9 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<{ error: any }>
+  sendResetPasswordEmail: (email: string) => Promise<{ error: any }>
+  resetPassword: (password: string) => Promise<{ error: any }>
+  fetchUserData: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -25,27 +27,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const fetchUserData = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", session.user.id)
+        .single()
+
+      if (error) {
+        console.error("Error fetching user data:", error)
+      } else {
+        setUser(data as User)
+      }
+    }
+  }
+
   useEffect(() => {
     // Get initial session
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-
-        // Get User Data From Supabase
-
-        supabase
-          .from("users")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Error fetching user data:", error)
-            } else {
-              setUser(data as User)
-            }
-          })
-
+        // Create a minimal user object from session data to avoid
+        // making database calls that could cause auth hanging issues
+        const sessionUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          username: session.user.user_metadata?.username || '',
+          createdAt: session.user.created_at
+        }
+        setUser(sessionUser)
+        
+        // Fetch full user data separately (outside of auth state change)
+        setTimeout(() => {
+          fetchUserData()
+        }, 100)
       }
       setLoading(false)
     })
@@ -54,20 +70,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id)
+      
       if (session?.user) {
-
-        const { data, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-
-        if (error) {
-          console.error("Error fetching user data on auth change:", error)
-        } else {
-          setUser(data as User)
+        // Don't make Supabase calls inside onAuthStateChange due to a known bug
+        // that causes subsequent auth calls to hang. Instead, we'll fetch user data
+        // separately when needed.
+        
+        // Create a minimal user object from session data
+        const sessionUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          username: session.user.user_metadata?.username || '',
+          createdAt: session.user.created_at
         }
-
+        setUser(sessionUser)
       } else {
         setUser(null)
       }
@@ -128,9 +145,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  const resetPassword = async (email: string) => {
+  const sendResetPasswordEmail = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${window.location.origin}/auth/reset-password`
+    })
+    return { error }
+  }
+
+  const resetPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ 
+      password: password 
     })
     return { error }
   }
@@ -143,7 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signIn,
         signOut,
+        sendResetPasswordEmail,
         resetPassword,
+        fetchUserData,
       }}
     >
       {children}
