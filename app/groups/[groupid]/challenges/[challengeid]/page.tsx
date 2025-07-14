@@ -41,7 +41,8 @@ import {
   getChallengeSubmissions,
   createChallengeSubmission,
   getUserSubmissionForChallenge,
-  updateSubmissionApproval
+  updateSubmissionApproval,
+  deleteChallengeSubmission
 } from "../../../../../lib/db/challenges"
 import { getChallengeVotes, getGroupById, getGroupMembership } from "../../../../../lib/db/groups"
 import { getUserById } from "../../../../../lib/db/users"
@@ -217,7 +218,8 @@ export default function ChallengeDetailsPage() {
     setProcessingSubmissions(prev => new Set(prev).add(submissionId))
     
     try {
-      await updateSubmissionApproval(submissionId, false, 0)
+      // Delete the submission instead of marking as rejected
+      await deleteChallengeSubmission(submissionId)
       
       // Refresh submissions
       const submissionsData = await getChallengeSubmissions(challengeId)
@@ -228,7 +230,14 @@ export default function ChallengeDetailsPage() {
         })
       )
       setSubmissions(submissionsWithUsers)
-      setSuccessMessage("Submission rejected successfully")
+      
+      // Also refresh user submission for the current user
+      if (user?.id) {
+        const userSub = await getUserSubmissionForChallenge(user.id, challengeId)
+        setUserSubmission(userSub)
+      }
+      
+      setSuccessMessage("Submission rejected and deleted - user can submit again")
       setTimeout(() => setSuccessMessage(null), 5000)
     } catch (error) {
       console.error("Error rejecting submission:", error)
@@ -284,7 +293,6 @@ export default function ChallengeDetailsPage() {
   const isExpired = daysLeft < 0
   const approvedSubmissions = submissions.filter(s => s.approved === true)
   const pendingSubmissions = submissions.filter(s => s.approved === null || s.approved === undefined)
-  const rejectedSubmissions = submissions.filter(s => s.approved === false)
   const isAdmin = userMembership?.role === "admin" || group?.admin === user?.id
 
   if (isLoading) {
@@ -313,48 +321,37 @@ export default function ChallengeDetailsPage() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="space-y-8 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => router.back()}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Group
-          </Button>
-          <div className="text-sm text-gray-500">
-            {group.name} / Challenges
+        <div className="space-y-4">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => router.push(`/groups/${groupId}`)}
+              className="p-2 border border-black hover:bg-gray-50"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-sm sm:text-base">Back to Group</span>
+            </Button>
           </div>
-        </div>
-
-        {/* Success Message */}
-        {successMessage && (
-          <Alert className="bg-green-50 border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">
-              {successMessage}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Challenge Header */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="text-2xl">{challenge.title}</CardTitle>
-                  <Badge className={getStatusColor(challenge.status)}>
-                    {challenge.status}
-                  </Badge>
-                </div>
-                <CardDescription className="text-base">
-                  {challenge.description}
-                </CardDescription>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex flex-row sm:flex-row sm:items-center gap-2 sm:gap-3 overflow-hidden justify-between">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate break-words overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{challenge.title}</h1>
+                <Badge className={getStatusColor(challenge.status)}>
+                  {challenge.status}
+                </Badge>
               </div>
-              <div className="text-right space-y-2">
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">{challenge.description}</p>
+              <div className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
+                {group.name} • {formatDate(challenge.startDate)} - {formatDate(challenge.endDate)}
+              </div>
+              
+              {/* Points and Time Left Row - Points always on the left */}
+              <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center gap-2 text-lg font-semibold text-orange-600">
                   <Trophy className="w-5 h-5" />
                   {challenge.points} points
@@ -369,9 +366,23 @@ export default function ChallengeDetailsPage() {
                 )}
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          </div>
+        </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              {successMessage}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Challenge Details Card */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar className="w-4 h-4" />
                 <span>Start: {formatDate(challenge.startDate)}</span>
@@ -387,7 +398,7 @@ export default function ChallengeDetailsPage() {
             </div>
             
             {creator && (
-              <div className="mt-4 pt-4 border-t">
+              <div className="pt-4 border-t">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-8 h-8">
                     <AvatarImage src={creator.avatarUrl} />
@@ -464,75 +475,90 @@ export default function ChallengeDetailsPage() {
         {isAdmin && challenge.status === "active" && pendingSubmissions.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5" />
-                Admin Panel - Pending Submissions
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <UserCheck className="w-5 h-5 shrink-0" />
+                <span className="truncate">Admin Panel - Pending Submissions</span>
+                <Badge variant="secondary" className="ml-auto shrink-0">
+                  {pendingSubmissions.length}
+                </Badge>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Review and approve submissions from group members
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {pendingSubmissions.map((submission) => (
-                    <div key={submission.id} className="border rounded-lg p-4 bg-yellow-50 border-yellow-200">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={submission.user?.avatarUrl} />
-                            <AvatarFallback>{submission.user?.username?.[0]?.toUpperCase()}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{submission.user?.username}</div>
-                            <div className="text-sm text-gray-600">
-                              Submitted {formatDateTime(submission.submittedAt)}
-                            </div>
-                            {submission.proofUrl && (
-                              <a 
-                                href={`//${submission.proofUrl}`} 
-                                target="_blank"
-                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mt-1"
-                              >
-                                <FileImage className="w-4 h-4" />
-                                View Proof
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            )}
+                  <div key={submission.id} className="border rounded-lg p-3 sm:p-4 bg-yellow-50 border-yellow-200">
+                    <div className="space-y-3">
+                      {/* User Info Row */}
+                      <div className="flex items-start gap-3">
+                        <Avatar className="w-10 h-10 shrink-0">
+                          <AvatarImage src={submission.user?.avatarUrl} />
+                          <AvatarFallback>{submission.user?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm sm:text-base truncate">
+                            {submission.user?.username}
                           </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleApproveSubmission(submission.id)}
-                            disabled={processingSubmissions.has(submission.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            {processingSubmissions.has(submission.id) ? "Approving..." : `Approve (${challenge.points} pts)`}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleRejectSubmission(submission.id)}
-                            disabled={processingSubmissions.has(submission.id)}
-                            className="border-red-600 text-red-600 hover:bg-red-50"
-                          >
-                            <XCircle className="w-4 h-4 mr-1" />
-                            {processingSubmissions.has(submission.id) ? "Rejecting..." : "Reject"}
-                          </Button>
+                          <div className="text-xs sm:text-sm text-gray-600">
+                            Submitted {formatDateTime(submission.submittedAt)}
+                          </div>
+                          {submission.proofUrl && (
+                            <a 
+                              href={`//${submission.proofUrl}`} 
+                              target="_blank"
+                              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs sm:text-sm mt-1 break-all"
+                            >
+                              <FileImage className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+                              <span className="truncate">View Proof</span>
+                              <ExternalLink className="w-3 h-3 shrink-0" />
+                            </a>
+                          )}
                         </div>
                       </div>
+                      
+                      {/* Action Buttons Row */}
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <Button
+                          size="sm"
+                          onClick={() => handleApproveSubmission(submission.id)}
+                          disabled={processingSubmissions.has(submission.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white flex-1 sm:flex-initial text-xs sm:text-sm px-4 py-2 sm:px-6 sm:py-2.5"
+                        >
+                          <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 shrink-0" />
+                          <span className="truncate">
+                            {processingSubmissions.has(submission.id) 
+                              ? "Approving..." 
+                              : `Approve (${challenge.points} pts)`
+                            }
+                          </span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRejectSubmission(submission.id)}
+                          disabled={processingSubmissions.has(submission.id)}
+                          className="border-red-600 text-red-600 hover:bg-red-50 flex-1 sm:flex-initial text-xs sm:text-sm px-4 py-2 sm:px-6 sm:py-2.5"
+                        >
+                          <XCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 shrink-0" />
+                          <span className="truncate">
+                            {processingSubmissions.has(submission.id) ? "Rejecting..." : "Reject"}
+                          </span>
+                        </Button>
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         )}
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="submissions" className="relative">
+        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="overview" className="text-sm sm:text-base">Overview</TabsTrigger>
+            <TabsTrigger value="submissions" className="relative text-sm sm:text-base">
               Submissions
               {isAdmin && pendingSubmissions.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
@@ -540,7 +566,7 @@ export default function ChallengeDetailsPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+            <TabsTrigger value="leaderboard" className="text-sm sm:text-base">Leaderboard</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -662,21 +688,23 @@ export default function ChallengeDetailsPage() {
           </TabsContent>
 
           {/* Submissions Tab */}
-          <TabsContent value="submissions" className="space-y-4">
-            {submissions.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions yet</h3>
-                  <p className="text-gray-600">Be the first to complete this challenge!</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {submissions.map((submission) => (
-                  <Card key={submission.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-start">
+          <TabsContent value="submissions">
+            <Card>
+              <CardHeader>
+                <CardTitle>Challenge Submissions</CardTitle>
+                <CardDescription>All submissions for this challenge</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {submissions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Upload className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions yet</h3>
+                    <p className="text-gray-600">Be the first to complete this challenge!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {submissions.map((submission) => (
+                      <div key={submission.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <div className="flex items-center gap-3">
                           <Avatar className="w-10 h-10">
                             <AvatarImage src={submission.user?.avatarUrl} />
@@ -685,6 +713,17 @@ export default function ChallengeDetailsPage() {
                           <div>
                             <div className="font-medium">{submission.user?.username}</div>
                             <div className="text-sm text-gray-600">{formatDateTime(submission.submittedAt)}</div>
+                            {submission.proofUrl && (
+                              <a 
+                                href={`//${submission.proofUrl}`} 
+                                target="_blank"
+                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mt-1"
+                              >
+                                <FileImage className="w-4 h-4" />
+                                View Proof
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
                           </div>
                         </div>
                         <div className="text-right space-y-2">
@@ -702,19 +741,8 @@ export default function ChallengeDetailsPage() {
                               </span>
                             )}
                           </div>
-                          {submission.proofUrl && (
-                            <a 
-                              href={`//${submission.proofUrl}`} 
-                              target="_blank"
-                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              <FileImage className="w-4 h-4" />
-                              View Proof
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
                           {isAdmin && submission.approved === undefined && (
-                            <div className="flex gap-2 mt-2">
+                            <div className="flex gap-2">
                               <Button
                                 size="sm"
                                 onClick={() => handleApproveSubmission(submission.id)}
@@ -738,15 +766,15 @@ export default function ChallengeDetailsPage() {
                           )}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Leaderboard Tab */}
-          <TabsContent value="leaderboard" className="space-y-4">
+          <TabsContent value="leaderboard">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -764,11 +792,11 @@ export default function ChallengeDetailsPage() {
                     <p className="text-gray-600">No completions yet</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {approvedSubmissions.map((submission, index) => (
-                      <div key={submission.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={submission.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center w-8 h-8 bg-yellow-100 text-yellow-800 rounded-full font-bold text-sm">
+                          <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full font-bold text-sm">
                             #{index + 1}
                           </div>
                           <Avatar className="w-8 h-8">

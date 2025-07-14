@@ -210,45 +210,51 @@ export default function GroupDashboard() {
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-8 overflow-hidden">
         {/* Group Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild>
+        <div className="space-y-4">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <Button variant="outline" size="sm" asChild className="p-2 border border-black hover:bg-gray-50">
               <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Groups
+              <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-sm sm:text-base">Back to Groups</span>
               </Link>
             </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-                {isAdmin && <Badge className="bg-purple-500">Admin</Badge>}
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 overflow-hidden">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate break-words overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{group.name}</h1>
+                {isAdmin && <Badge className="bg-purple-500 w-fit shrink-0">Admin</Badge>}
               </div>
-              {group.description && <p className="text-muted-foreground mt-1">{group.description}</p>}
-              <p className="text-sm text-muted-foreground mt-1">
-                {group.membersCount} members • Invite code: <span className="font-mono">{group.inviteCode}</span>
-              </p>
+              {group.description && <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">{group.description}</p>}
+              <div className="text-xs sm:text-sm text-muted-foreground mt-1 break-words">
+                {group.membersCount} members • Invite code: <span className="font-mono break-all">{group.inviteCode}</span>
+              </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Button asChild>
+          
+          {/* Action Buttons - Mobile-first responsive design */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <Button asChild className="w-full sm:w-auto">
               <Link href={`/groups/${groupId}/challenges/create`}>
                 <Plus className="w-4 h-4 mr-2" />
-                New Challenge
+                <span className="sm:inline">New Challenge</span>
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link href={`/groups/${groupId}/rewards`}>
                 <Trophy className="w-4 h-4 mr-2" />
-                Rewards
+                <span className="sm:inline">Rewards</span>
               </Link>
             </Button>
             {isAdmin && (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="w-full sm:w-auto">
                 <Link href={`/groups/${groupId}/admin`}>
                   <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  <span className="sm:inline">Settings</span>
                 </Link>
               </Button>
             )}
@@ -256,7 +262,7 @@ export default function GroupDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Your Points</CardTitle>
@@ -303,17 +309,17 @@ export default function GroupDashboard() {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="challenges" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="challenges">Challenges</TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
+        <Tabs defaultValue="challenges" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="challenges" className="text-sm sm:text-base">Challenges</TabsTrigger>
+            <TabsTrigger value="leaderboard" className="text-sm sm:text-base">Leaderboard</TabsTrigger>
           </TabsList>
 
           <TabsContent value="challenges" className="space-y-6">
             {pendingChallenges.length > 0 && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Pending Approval</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                   {pendingChallenges.map((challenge) => (
                     <ChallengeCard
                       key={challenge.id}
@@ -329,7 +335,7 @@ export default function GroupDashboard() {
             <div>
               <h2 className="text-xl font-semibold mb-4">Active Challenges</h2>
               {activeChallenges.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                   {activeChallenges.map((challenge) => (
                     <ChallengeCard
                       key={challenge.id}

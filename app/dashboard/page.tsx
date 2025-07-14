@@ -34,7 +34,7 @@ import { Textarea } from "../../components/textarea"
 
 import { useAuth } from "../../contexts/AuthContext"
 
-import { createGroup, getUserGroups, joinGroup, getGroupMembership } from "../../lib/db/groups"
+import { createGroup, getUserGroups, joinGroup, getGroupMembership, getGroupChallenges } from "../../lib/db/groups"
 
 import { Plus, Users, Trophy, Activity, MoreVertical, Copy, LogOut, Settings, UserPlus } from "lucide-react"
 
@@ -56,6 +56,8 @@ export default function GroupsDashboard() {
   const [loading, setLoading] = useState(false)
   const [userGroups, setUserGroups] = useState<Group[]>([]) // Fetch user groups from the database or context
   const [userPoints, setUserPoints] = useState(0) // Placeholder for user points
+  const [groupActiveChallenges, setGroupActiveChallenges] = useState<Record<string, number>>({}) // Track active challenges per group
+
 
   useEffect(() => {
     if (!user) return
@@ -68,6 +70,24 @@ export default function GroupsDashboard() {
         const challenges = await getAllSubmittedChallenges(user.id)
         const points = challenges.reduce((sum, challenge) => sum + challenge.points, 0)
         setUserPoints(points)
+
+        // Fetch active challenges count for each group
+        if (groups && groups.length > 0) {
+          const activeChallengesMap: Record<string, number> = {}
+          await Promise.all(
+            groups.map(async (group) => {
+              try {
+                const groupChallenges = await getGroupChallenges(group.id)
+                const activeCount = groupChallenges.filter(challenge => challenge.status === 'active').length
+                activeChallengesMap[group.id] = activeCount
+              } catch (error) {
+                console.error(`Error fetching challenges for group ${group.id}:`, error)
+                activeChallengesMap[group.id] = 0
+              }
+            })
+          )
+          setGroupActiveChallenges(activeChallengesMap)
+        }
       } catch (error) {
         console.error("Error fetching user groups:", error)
         alert("Failed to load your groups. Please try again later.")
@@ -185,15 +205,17 @@ export default function GroupsDashboard() {
     <Layout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Your Groups</h1>
-            <p className="text-muted-foreground mt-1">Manage your challenge groups and create new adventures</p>
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Your Groups</h1>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base">Manage your challenge groups and create new adventures</p>
+            </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <UserPlus className="w-4 h-4 mr-2" />
                   Join Group
                 </Button>
@@ -229,7 +251,7 @@ export default function GroupsDashboard() {
 
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Group
                 </Button>
@@ -303,26 +325,34 @@ export default function GroupsDashboard() {
           <h2 className="text-xl font-semibold">Your Groups</h2>
 
           {userGroups.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {userGroups.map((group) => {
                 const isAdmin = group.admin === user.id
+                const activeChallengesCount = groupActiveChallenges[group.id] || 0
 
                 return (
                   <Card key={group.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{group.name}</CardTitle>
-                          {group.description && <CardDescription className="mt-1">{group.description}</CardDescription>}
+                    <CardHeader className="pb-4">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CardTitle className="text-lg truncate">{group.name}</CardTitle>
+                            {isAdmin && <Badge className="bg-purple-500 text-xs px-2 py-0.5">Admin</Badge>}
+                          </div>
+                          {group.description && (
+                            <CardDescription className="text-sm line-clamp-2 break-words">
+                              {group.description}
+                            </CardDescription>
+                          )}
                         </div>
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="bg-white">
                             <DropdownMenuItem onClick={() => handleCopyInviteCode(group.inviteCode)}>
                               <Copy className="mr-2 h-4 w-4" />
                               Copy Invite Code
@@ -353,35 +383,40 @@ export default function GroupsDashboard() {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-
-                      {isAdmin && <Badge className="w-fit bg-purple-500">Admin</Badge>}
                     </CardHeader>
 
-                    <CardContent className="space-y-4">
+                    <CardContent className="pt-0 space-y-3">
                       {/* Group Stats */}
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <div className="text-lg font-bold text-blue-600">{group.membersCount}</div>
-                          <div className="text-xs text-muted-foreground">Members</div>
+                      <div className="flex justify-between items-center text-center">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-600">{group.membersCount}</span>
+                          <span className="text-xs text-muted-foreground">members</span>
                         </div>
-                        <div>
-                          <div className="text-lg font-bold text-green-600">{group.activeChallenges}</div>
-                          <div className="text-xs text-muted-foreground">Active</div>
+                        <div className="flex items-center gap-1">
+                          <Activity className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-medium text-green-600">{activeChallengesCount}</span>
+                          <span className="text-xs text-muted-foreground">active</span>
                         </div>
                       </div>
 
-                      {/* Member Avatars */}
-
                       {/* Invite Code */}
-                      <div className="flex items-center justify-between p-2 bg-muted rounded-lg">
-                        <span className="text-sm font-mono">{group.inviteCode}</span>
-                        <Button size="sm" variant="ghost" onClick={() => handleCopyInviteCode(group.inviteCode)}>
+                      <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                        <span className="text-xs font-mono text-muted-foreground flex-1 truncate">
+                          Code: {group.inviteCode}
+                        </span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleCopyInviteCode(group.inviteCode)} 
+                          className="h-6 w-6 p-0 shrink-0"
+                        >
                           <Copy className="h-3 w-3" />
                         </Button>
                       </div>
 
                       {/* Enter Group Button */}
-                      <Button asChild className="w-full">
+                      <Button asChild className="w-full h-9">
                         <Link href={`/groups/${group.id}`}>Enter Group</Link>
                       </Button>
                     </CardContent>
@@ -397,12 +432,12 @@ export default function GroupsDashboard() {
                 <CardDescription className="mb-4">
                   Create your first group or join an existing one to start challenging your friends!
                 </CardDescription>
-                <div className="flex gap-2 justify-center">
-                  <Button onClick={() => setShowCreateDialog(true)}>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button onClick={() => setShowCreateDialog(true)} className="w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" />
                     Create Group
                   </Button>
-                  <Button variant="outline" onClick={() => setShowJoinDialog(true)}>
+                  <Button variant="outline" onClick={() => setShowJoinDialog(true)} className="w-full sm:w-auto">
                     <UserPlus className="w-4 h-4 mr-2" />
                     Join Group
                   </Button>

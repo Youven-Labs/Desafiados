@@ -161,39 +161,39 @@ export default function ProfilePage() {
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-8 overflow-hidden">
         {/* Profile Header */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-              <Avatar className="w-24 h-24">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24">
                 <AvatarImage src={userData?.avatarUrl || "/placeholder.svg"} />
-                <AvatarFallback className="text-2xl">{user.username.charAt(0)}</AvatarFallback>
+                <AvatarFallback className="text-lg sm:text-2xl">{user.username.charAt(0)}</AvatarFallback>
               </Avatar>
 
-              <div className="flex-1 text-center md:text-left">
-                <h2 className="text-2xl font-bold mb-1">{userData?.username}</h2>
-                <p className="text-muted-foreground mb-4">{user.email}</p>
+              <div className="flex-1 text-center md:text-left min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold mb-1 truncate">{userData?.username}</h2>
+                <p className="text-muted-foreground mb-4 text-sm sm:text-base break-words">{user.email}</p>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-center">
                   <div>
-                    <div className="text-2xl font-bold text-purple-600">{totalPointsEarned}</div>
-                    <div className="text-sm text-muted-foreground">Lifetime Total Points</div>
+                    <div className="text-xl sm:text-2xl font-bold text-purple-600">{totalPointsEarned}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Lifetime Total Points</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-green-600">{completedChallenges.length}</div>
-                    <div className="text-sm text-muted-foreground">Completed</div>
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{completedChallenges.length}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Completed</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-blue-600">{challengesCreated}</div>
-                    <div className="text-sm text-muted-foreground">Created</div>
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{challengesCreated}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Created</div>
                   </div>
                 </div>
               </div>
 
               <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" onClick={handleEditProfile}>
+                  <Button variant="outline" onClick={handleEditProfile} className="w-full md:w-auto">
                     <Edit className="w-4 h-4 mr-2" />
                     Edit Profile
                   </Button>
@@ -253,10 +253,10 @@ export default function ProfilePage() {
         </Card>
 
         {/* Profile Tabs */}
-        <Tabs defaultValue="challenges" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="challenges">Challenges</TabsTrigger>
-            <TabsTrigger value="achievements">Achievements</TabsTrigger>
+        <Tabs defaultValue="challenges" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="challenges" className="text-sm sm:text-base">Challenges</TabsTrigger>
+            <TabsTrigger value="achievements" className="text-sm sm:text-base">Achievements</TabsTrigger>
           </TabsList>
 
           <TabsContent value="challenges" className="space-y-6">

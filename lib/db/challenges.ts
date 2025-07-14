@@ -307,3 +307,23 @@ export async function getUserSubmissionForChallenge(userId: string, challengeId:
     console.log("Get user submission for challenge response:", submission);
     return submission;
 }
+
+// Function to delete a challenge submission
+export async function deleteChallengeSubmission(submissionId: string) {
+    console.log("Deleting challenge submission:", submissionId);
+    const { data, error } = await supabase
+        .from("challenge_submission")
+        .delete()
+        .eq("id", submissionId)
+        .select()
+        .single();
+
+    console.log("Delete submission response:", data, error);
+
+    if (error) {
+        console.error("Error deleting submission:", error);
+        throw new Error(error.message);
+    }
+
+    return data;
+}

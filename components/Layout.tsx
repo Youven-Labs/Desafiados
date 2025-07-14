@@ -49,18 +49,18 @@ export function Layout({ children }: LayoutProps) {
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-4 sm:space-x-8">
               <Link href="/dashboard" className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-sm">D</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900">Desafiados</span>
+                <span className="text-lg sm:text-xl font-bold text-gray-900">Desafiados</span>
               </Link>
 
-              <nav className="hidden md:flex space-x-6">
+              <nav className="hidden md:flex space-x-4 lg:space-x-6">
                 <Link
                   href="/dashboard"
-                  className={`flex items-center space-x-1 transition-colors ${
+                  className={`flex items-center space-x-1 transition-colors text-sm lg:text-base ${
                     pathname === "/dashboard" ? "text-purple-600" : "text-gray-700 hover:text-purple-600"
                   }`}
                 >
@@ -72,7 +72,7 @@ export function Layout({ children }: LayoutProps) {
                   <>
                     <Link
                       href={`/groups/${groupId}/rewards`}
-                      className={`flex items-center space-x-1 transition-colors ${
+                      className={`flex items-center space-x-1 transition-colors text-sm lg:text-base ${
                         pathname.includes("/rewards") ? "text-purple-600" : "text-gray-700 hover:text-purple-600"
                       }`}
                     >
@@ -84,7 +84,7 @@ export function Layout({ children }: LayoutProps) {
 
                 <Link
                   href="/profile"
-                  className={`flex items-center space-x-1 transition-colors ${
+                  className={`flex items-center space-x-1 transition-colors text-sm lg:text-base ${
                     pathname === "/profile" ? "text-purple-600" : "text-gray-700 hover:text-purple-600"
                   }`}
                 >
@@ -141,7 +141,7 @@ export function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-hidden">{children}</main>
     </div>
   )
 }

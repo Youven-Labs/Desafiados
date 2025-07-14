@@ -142,26 +142,38 @@ export default function CreateRewardPage() {
 
   return (
     <Layout>
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="space-y-8 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleCancel}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Rewards
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">Create New Reward</h1>
-            <p className="text-sm text-gray-500">Add a reward for your group members</p>
+        <div className="space-y-4">
+          {/* Back Button */}
+          <div className="flex items-center">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCancel}
+              className="p-2 border border-black hover:bg-gray-50"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-sm sm:text-base">Back to Rewards</span>
+            </Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 overflow-hidden">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate break-words overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>Create New Reward</h1>
+              </div>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">Add a reward for your group members to redeem with their points</p>
+            </div>
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shrink-0">
+              <Gift className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
           </div>
         </div>
 
         {/* Success Message */}
         {successMessage && (
-          <Alert className="bg-green-50 border-green-200 mb-6">
+          <Alert className="bg-green-50 border-green-200">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800">
               {successMessage}
@@ -171,7 +183,7 @@ export default function CreateRewardPage() {
 
         {/* Error Message */}
         {errorMessage && (
-          <Alert className="bg-red-50 border-red-200 mb-6">
+          <Alert className="bg-red-50 border-red-200">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <AlertDescription className="text-red-800">
               {errorMessage}
@@ -180,17 +192,15 @@ export default function CreateRewardPage() {
         )}
 
         {/* Create Reward Form */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gift className="w-5 h-5" />
-              Reward Details
-            </CardTitle>
-            <CardDescription>
-              Create an attractive reward that members can redeem with their earned points
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Reward Details</CardTitle>
+              <CardDescription>
+                Create an attractive reward that members can redeem with their earned points
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Reward Name */}
               <div className="space-y-2">
@@ -276,20 +286,20 @@ export default function CreateRewardPage() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleCancel}
                   disabled={isSubmitting}
-                  className="flex-1"
+                  className="w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isSubmitting || !formData.name.trim() || !formData.pointsRequired.trim()}
-                  className="flex-1"
+                  className="w-full sm:w-auto"
                 >
                   {isSubmitting ? "Creating..." : "Create Reward"}
                 </Button>
@@ -297,22 +307,25 @@ export default function CreateRewardPage() {
             </form>
           </CardContent>
         </Card>
+        </div>
 
         {/* Tips Card */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Tips for Creating Great Rewards</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm text-gray-600">
-              <li>• Make rewards achievable - consider how many points members typically earn</li>
-              <li>• Be specific in descriptions - clearly explain what's included</li>
-              <li>• Offer variety - different point levels for different interests</li>
-              <li>• Consider both individual and team rewards</li>
-              <li>• Keep it engaging - rewards should motivate participation</li>
-            </ul>
-          </CardContent>
-        </Card>
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Tips for Creating Great Rewards</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm text-gray-600">
+                <li>• Make rewards achievable - consider how many points members typically earn</li>
+                <li>• Be specific in descriptions - clearly explain what's included</li>
+                <li>• Offer variety - different point levels for different interests</li>
+                <li>• Consider both individual and team rewards</li>
+                <li>• Keep it engaging - rewards should motivate participation</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </Layout>
   )

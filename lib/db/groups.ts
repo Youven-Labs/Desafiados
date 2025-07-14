@@ -429,3 +429,100 @@ export const getAllGroupMemberShips = async (groupId: string): Promise<UserGroup
         return [];
     }
 };
+
+// Function to update group details
+export const updateGroup = async (groupId: string, updates: Partial<Pick<Group, 'name' | 'description'>>): Promise<Group | null> => {
+    try {
+        console.log("🔄 Updating group:", groupId, updates);
+
+        const { data, error } = await supabase
+            .from("groups")
+            .update({
+                name: updates.name,
+                description: updates.description,
+            })
+            .eq("id", groupId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("❌ Error updating group:", error);
+            throw new Error(`Failed to update group: ${error.message}`);
+        }
+
+        if (!data) {
+            console.error("❌ No data returned from group update");
+            return null;
+        }
+
+        // Map the response back to Group structure
+        const updatedGroup: Group = {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            admin: data.admin,
+            createdAt: data.created_at,
+            inviteCode: data.invite_code,
+            membersCount: data.members_count,
+            activeChallenges: data.active_challenges,
+        };
+
+        console.log("✅ Group updated successfully:", updatedGroup);
+        return updatedGroup;
+    } catch (error) {
+        console.error("❌ Unexpected error updating group:", error);
+        throw error;
+    }
+};
+
+// Function to delete a group and all associated data
+export const deleteGroup = async (groupId: string): Promise<boolean> => {
+    try {
+        console.log("🗑️ Deleting group:", groupId);
+
+        // Start a transaction-like operation by deleting related data first
+        
+        // 1. Delete all user group memberships
+        const { error: membershipError } = await supabase
+            .from("user_group_memberships")
+            .delete()
+            .eq("group_id", groupId);
+
+        if (membershipError) {
+            console.error("❌ Error deleting group memberships:", membershipError);
+            throw new Error(`Failed to delete group memberships: ${membershipError.message}`);
+        }
+
+        // 2. Delete all challenges in the group
+        const { error: challengesError } = await supabase
+            .from("challenge")
+            .delete()
+            .eq("group_id", groupId);
+
+        if (challengesError) {
+            console.error("❌ Error deleting group challenges:", challengesError);
+            throw new Error(`Failed to delete group challenges: ${challengesError.message}`);
+        }
+
+        // 3. Delete all votes related to challenges in this group
+        // Note: This might require a more complex query if votes reference challenges
+        // For now, we'll assume cascade delete is set up in the database
+
+        // 4. Finally, delete the group itself
+        const { error: groupError } = await supabase
+            .from("groups")
+            .delete()
+            .eq("id", groupId);
+
+        if (groupError) {
+            console.error("❌ Error deleting group:", groupError);
+            throw new Error(`Failed to delete group: ${groupError.message}`);
+        }
+
+        console.log("✅ Group deleted successfully:", groupId);
+        return true;
+    } catch (error) {
+        console.error("❌ Unexpected error deleting group:", error);
+        throw error;
+    }
+};

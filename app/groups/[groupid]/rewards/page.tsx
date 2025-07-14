@@ -189,32 +189,43 @@ export default function RewardsPage() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="space-y-8 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="space-y-4">
+          {/* Back Button */}
+          <div className="flex items-center">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => router.push(`/groups/${groupId}`)}
+              className="p-2 border border-black hover:bg-gray-50"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Group
+              <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="text-sm sm:text-base">Back to Group</span>
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Rewards</h1>
-              <p className="text-sm text-gray-500">{group.name}</p>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 overflow-hidden">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 truncate break-words overflow-hidden" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>Rewards</h1>
+              </div>
+              <p className="text-muted-foreground mt-1 text-sm sm:text-base break-words">{group.name}</p>
             </div>
           </div>
-          {isAdmin && (
-            <Button 
-              onClick={() => router.push(`/groups/${groupId}/rewards/create`)}
-              className="flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Create Reward
-            </Button>
-          )}
+          
+          {/* Action Buttons - Mobile-first responsive design */}
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            {isAdmin && (
+              <Button 
+                onClick={() => router.push(`/groups/${groupId}/rewards/create`)}
+                className="w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                <span className="sm:inline">Create Reward</span>
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Success/Error Messages */}
@@ -236,47 +247,62 @@ export default function RewardsPage() {
           </Alert>
         )}
 
-        {/* User Points Card */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Your Points</h3>
-                  <p className="text-sm text-gray-600">Available in {group.name}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-blue-600">{userMembership.points}</div>
-                <div className="text-sm text-gray-500">points available</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Stats Card */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Your Points</CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{userMembership.points}</div>
+              <p className="text-xs text-muted-foreground">Available to spend</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Available Rewards</CardTitle>
+              <Gift className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{rewards.length}</div>
+              <p className="text-xs text-muted-foreground">{rewards.filter(r => r.canAfford).length} you can afford</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Redeemed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{userRedemptions.length}</div>
+              <p className="text-xs text-muted-foreground">Total rewards claimed</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Tabs defaultValue="available" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="available">Available Rewards</TabsTrigger>
-            <TabsTrigger value="history">My Redemptions</TabsTrigger>
-            {isAdmin && <TabsTrigger value="manage">Manage</TabsTrigger>}
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="available" className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full grid-cols-3 h-auto">
+            <TabsTrigger value="available" className="text-sm sm:text-base">Available</TabsTrigger>
+            <TabsTrigger value="history" className="text-sm sm:text-base">My History</TabsTrigger>
+            {isAdmin && <TabsTrigger value="manage" className="text-sm sm:text-base">Manage</TabsTrigger>}
           </TabsList>
 
           {/* Available Rewards Tab */}
-          <TabsContent value="available" className="space-y-4">
+          <TabsContent value="available" className="space-y-6">
             {rewards.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Gift className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No rewards available</h3>
-                  <p className="text-gray-600">
+              <Card className="text-center py-12">
+                <CardContent>
+                  <div className="text-6xl mb-4">🎁</div>
+                  <CardTitle className="mb-2">No Rewards Available</CardTitle>
+                  <CardDescription className="mb-4">
                     {isAdmin ? "Create the first reward for your group!" : "Ask your group admin to create some rewards."}
-                  </p>
+                  </CardDescription>
                   {isAdmin && (
                     <Button 
-                      className="mt-4"
                       onClick={() => router.push(`/groups/${groupId}/rewards/create`)}
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -286,7 +312,7 @@ export default function RewardsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
                 {rewards.map((reward) => (
                   <Card key={reward.id} className={`relative ${!reward.canAfford ? 'opacity-60' : ''}`}>
                     <CardHeader>
@@ -327,21 +353,23 @@ export default function RewardsPage() {
           </TabsContent>
 
           {/* User Redemptions History Tab */}
-          <TabsContent value="history" className="space-y-4">
-            {userRedemptions.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No redemptions yet</h3>
-                  <p className="text-gray-600">Your reward redemption history will appear here.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {userRedemptions.map((redemption) => (
-                  <Card key={redemption.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex justify-between items-start">
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Redemption History</CardTitle>
+                <CardDescription>Your reward redemptions in {group.name}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {userRedemptions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🕐</div>
+                    <CardTitle className="mb-2">No Redemptions Yet</CardTitle>
+                    <CardDescription>Your reward redemption history will appear here.</CardDescription>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {userRedemptions.map((redemption) => (
+                      <div key={redemption.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                         <div className="flex-1">
                           <h3 className="font-medium">{redemption.reward?.name}</h3>
                           <p className="text-sm text-gray-600 mt-1">
@@ -363,17 +391,17 @@ export default function RewardsPage() {
                           Redeemed
                         </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Admin Management Tab */}
           {isAdmin && (
             <TabsContent value="manage" className="space-y-4">
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2">
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
