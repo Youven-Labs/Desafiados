@@ -65,3 +65,36 @@ export interface Vote {
   approved: boolean // true for approve, false for reject
   votedAt: string
 }
+
+export interface Reward {
+  id: string
+  groupId: string
+  name: string
+  description?: string
+  pointsRequired: number
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  isActive: boolean
+}
+
+export interface UserRewardRedemption {
+  id: string
+  userId: string
+  rewardId: string
+  redeemedAt: string
+  pointsSpent: number
+}
+
+// Extended interfaces for UI components
+export interface RewardWithStats extends Reward {
+  totalRedemptions?: number
+  canAfford?: boolean
+  userPoints?: number
+}
+
+export interface RewardRedemptionWithDetails extends UserRewardRedemption {
+  reward?: Reward
+  user?: User
+  group?: Group
+}

@@ -177,8 +177,6 @@ export default function GroupDashboard() {
         }
     })
 
-  const isAdmin = group.admin === user.id
-
   const handleVoteOnChallenge = (challengeId: string, vote: boolean) => {
     console.log(`Voting ${vote} on challenge ${challengeId}`)
     if (!user || !userMembership) {
@@ -207,6 +205,8 @@ export default function GroupDashboard() {
   const handleViewChallenge = (challengeId: string) => {
     router.push(`/groups/${groupId}/challenges/${challengeId}`)
   }
+
+  const isAdmin = group.admin === user.id
 
   return (
     <Layout>
@@ -304,10 +304,9 @@ export default function GroupDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="challenges" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="challenges" className="space-y-6">

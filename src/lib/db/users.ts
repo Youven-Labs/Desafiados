@@ -37,3 +37,22 @@ export const createUserWithUsername= async (userId: string, username: string) =>
 
   return data;
 };
+
+// Function to update user information
+export const updateUser = async (userId: string, updates: { username?: string; avatarUrl?: string }) => {
+  const { data, error } = await supabase
+    .from("users")
+    .update({
+      ...updates
+    })
+    .eq("id", userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating user:", error);
+    throw new Error(error.message);
+  }
+
+  return data;
+};

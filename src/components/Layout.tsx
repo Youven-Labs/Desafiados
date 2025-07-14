@@ -95,10 +95,6 @@ export function Layout({ children }: LayoutProps) {
             </div>
 
             <div className="flex items-center space-x-4">
-              <div className="hidden sm:flex items-center space-x-2 bg-purple-100 px-3 py-1 rounded-full">
-                <Trophy className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-purple-700">{0} pts</span>
-              </div>
 
               {isInGroup && (
                 <Button size="sm" className="hidden sm:flex" asChild>
@@ -112,7 +108,7 @@ export function Layout({ children }: LayoutProps) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 rounded-full outline outline-offset-2 outline-2 outline-purple-500">
                       <AvatarImage src={user.avatarUrl || "/placeholder.svg"} alt={user.username} />
                       <AvatarFallback>{user.username.charAt(0)}</AvatarFallback>
                     </Avatar>
@@ -132,14 +128,6 @@ export function Layout({ children }: LayoutProps) {
                       Profile
                     </Link>
                   </DropdownMenuItem>
-                  {true && isInGroup && (
-                    <DropdownMenuItem asChild>
-                      <Link href={`/groups/${groupId}/admin`}>
-                        <Settings className="mr-2 h-4 w-4" />
-                        Group Settings
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />

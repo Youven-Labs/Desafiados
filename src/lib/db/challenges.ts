@@ -178,6 +178,7 @@ export async function getNumberOfChallengesCreated(userId: string) {
     const { count, error } = await supabase
         .from("challenge")
         .select("*", { count: "exact" })
+        .eq("status", "active")
         .eq("created_by", userId);
 
     console.log("Get number of challenges created response:", count, error);

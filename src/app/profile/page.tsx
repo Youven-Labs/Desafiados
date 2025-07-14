@@ -12,47 +12,152 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs"
+import { Input } from "@/components/input"
+import { Label } from "@/components/label"
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/dialog"
 import { useAuth } from "@/contexts/AuthContext"
 import { Trophy, Calendar, Activity, Edit, Award } from "lucide-react"
 
-import { getUserById } from "@/lib/db/users"
-import { Challenge } from "@/models"
+import { getUserById, updateUser } from "@/lib/db/users"
+import { Challenge, User } from "@/models"
 import { getAllSubmittedChallenges, getNumberOfChallengesCreated } from "@/lib/db/challenges"
 
 export default function ProfilePage() {
-  const { user } = useAuth()
-
-  if (!user) return null
-
+  const { user, fetchUserData } = useAuth()
+  
   const [completedChallenges, setCompletedChallenges] = useState<Challenge[]>([])
   const [totalPointsEarned, setTotalPointsEarned] = useState(0)
   const [challengesCreated, setChallengesCreated] = useState(0)
-  const [userData, setUserData] = useState(user)
-
   const [loading, setLoading] = useState(true)
+  const [userData, setUserData] = useState<User | null>(null)
+  
+  // Edit profile state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editUsername, setEditUsername] = useState("")
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Fetch completed challenges and points
-    getAllSubmittedChallenges(user.id)
-      .then((challenges) => {
+    if (!user) return
+
+    const fetchProfileData = async () => {
+      try {
+        setLoading(true)
+        
+        // Set initial user data
+        setUserData(user)
+        
+        // Fetch completed challenges and points
+        const challenges = await getAllSubmittedChallenges(user.id)
         setCompletedChallenges(challenges)
         const points = challenges.reduce((sum, challenge) => sum + challenge.points, 0)
         setTotalPointsEarned(points)
-      })
-      .catch((error) => console.error("Error fetching completed challenges:", error))
 
-    // Fetch number of challenges created by user
-    getNumberOfChallengesCreated(user.id)
-      .then((count) => setChallengesCreated(count))
-      .catch((error) => console.error("Error fetching challenges created:", error))
+        // Fetch number of challenges created by user
+        const count = await getNumberOfChallengesCreated(user.id)
+        setChallengesCreated(count)
 
-    // Fetch user data
-    getUserById(user.id)
-      .then((data) => setUserData(data))
-      .catch((error) => console.error("Error fetching user data:", error))
+        // Fetch updated user data
+        const updatedUserData = await getUserById(user.id)
+        setUserData(updatedUserData)
+        
+      } catch (error) {
+        console.error("Error fetching profile data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-    setLoading(false)
-  }, [user.id])
+    fetchProfileData()
+  }, [user])
+
+  const handleEditProfile = () => {
+    setEditUsername(userData?.username || "")
+    setUpdateError(null)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateProfile = async () => {
+    if (!user || !editUsername.trim()) {
+      setUpdateError("Username is required")
+      return
+    }
+
+    const trimmedUsername = editUsername.trim()
+
+    // Basic validation
+    if (trimmedUsername.length < 3) {
+      setUpdateError("Username must be at least 3 characters long")
+      return
+    }
+
+    if (trimmedUsername.length > 20) {
+      setUpdateError("Username must be less than 20 characters")
+      return
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
+      setUpdateError("Username can only contain letters, numbers, underscores, and hyphens")
+      return
+    }
+
+    if (trimmedUsername === userData?.username) {
+      setIsEditDialogOpen(false)
+      return
+    }
+
+    setIsUpdating(true)
+    setUpdateError(null)
+
+    try {
+      const updatedUser = await updateUser(user.id, { username: trimmedUsername })
+      setUserData(updatedUser)
+      setIsEditDialogOpen(false)
+      
+      // Update the user context
+      await fetchUserData()
+    } catch (error) {
+      console.error("Error updating profile:", error)
+      setUpdateError("Failed to update username. It might already be taken.")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  // Early return if no user - this happens after hooks are called
+  if (!user) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Please log in</h2>
+            <p className="text-muted-foreground">You need to be logged in to view your profile.</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
 
   return (
     <Layout>
@@ -62,18 +167,18 @@ export default function ProfilePage() {
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               <Avatar className="w-24 h-24">
-                <AvatarImage src={userData.avatarUrl || "/placeholder.svg"} />
+                <AvatarImage src={userData?.avatarUrl || "/placeholder.svg"} />
                 <AvatarFallback className="text-2xl">{user.username.charAt(0)}</AvatarFallback>
               </Avatar>
 
               <div className="flex-1 text-center md:text-left">
-
+                <h2 className="text-2xl font-bold mb-1">{userData?.username}</h2>
                 <p className="text-muted-foreground mb-4">{user.email}</p>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-purple-600">{totalPointsEarned}</div>
-                    <div className="text-sm text-muted-foreground">Total Points</div>
+                    <div className="text-sm text-muted-foreground">Lifetime Total Points</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-green-600">{completedChallenges.length}</div>
@@ -86,20 +191,72 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <Button variant="outline">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" onClick={handleEditProfile}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] bg-white">
+                  <DialogHeader>
+                    <DialogTitle>Edit Profile</DialogTitle>
+                    <DialogDescription>
+                      Update your username. Username must be 3-20 characters and can only contain letters, numbers, underscores, and hyphens.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="username" className="text-right">
+                        Username
+                      </Label>
+                      <Input
+                        id="username"
+                        value={editUsername}
+                        onChange={(e) => setEditUsername(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !isUpdating && editUsername.trim()) {
+                            handleUpdateProfile()
+                          }
+                        }}
+                        className="col-span-3"
+                        placeholder="Enter your username"
+                      />
+                    </div>
+                    {updateError && (
+                      <div className="col-span-4 text-sm text-red-600 text-center">
+                        {updateError}
+                      </div>
+                    )}
+                  </div>
+                  <DialogFooter>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setIsEditDialogOpen(false)}
+                      disabled={isUpdating}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      onClick={handleUpdateProfile}
+                      disabled={isUpdating || !editUsername.trim()}
+                    >
+                      {isUpdating ? "Saving..." : "Save changes"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
 
         {/* Profile Tabs */}
         <Tabs defaultValue="challenges" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="challenges">Challenges</TabsTrigger>
             <TabsTrigger value="achievements">Achievements</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
           <TabsContent value="challenges" className="space-y-6">
