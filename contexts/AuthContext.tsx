@@ -147,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const sendResetPasswordEmail = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `desafiados.es/auth/reset-password`
+      redirectTo: `https://desafiados.es/auth/reset-password`
     })
     return { error }
   }
