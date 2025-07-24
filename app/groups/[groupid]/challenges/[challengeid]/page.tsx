@@ -286,6 +286,20 @@ export default function ChallengeDetailsPage() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
   }
 
+  const formatProofUrl = (url: string) => {
+    if (!url) return ""
+    // If URL already has a protocol, return as is
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url
+    }
+    // If URL starts with //, add https: prefix
+    if (url.startsWith("//")) {
+      return `https:${url}`
+    }
+    // Otherwise, add https:// prefix
+    return `https://${url}`
+  }
+
   const userVote = votes.find(v => v.userId === user?.id)
   const approveVotes = votes.filter(v => v.approved).length
   const rejectVotes = votes.filter(v => !v.approved).length
@@ -506,7 +520,7 @@ export default function ChallengeDetailsPage() {
                           </div>
                           {submission.proofUrl && (
                             <a 
-                              href={`//${submission.proofUrl}`} 
+                              href={formatProofUrl(submission.proofUrl)} 
                               target="_blank"
                               className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs sm:text-sm mt-1 break-all"
                             >
@@ -639,7 +653,7 @@ export default function ChallengeDetailsPage() {
                       <div>
                         <span className="text-sm text-gray-600">Proof:</span>
                         <a 
-                          href={`//${userSubmission.proofUrl}`} 
+                          href={formatProofUrl(userSubmission.proofUrl)} 
                           target="_blank"
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mt-1"
                         >
@@ -715,7 +729,7 @@ export default function ChallengeDetailsPage() {
                             <div className="text-sm text-gray-600">{formatDateTime(submission.submittedAt)}</div>
                             {submission.proofUrl && (
                               <a 
-                                href={`//${submission.proofUrl}`} 
+                                href={formatProofUrl(submission.proofUrl)} 
                                 target="_blank"
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm mt-1"
                               >
