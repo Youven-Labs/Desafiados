@@ -46,7 +46,20 @@ export default function GroupDashboard() {
             const groupData = await getGroupById(groupId)
             const challengesData = await getGroupChallenges(groupId)
 
-            setChallenges(challengesData)
+            // Check expired challenges and mark them as completed
+            const currentDate = new Date()
+            const updatedChallenges = challengesData.map((challenge) => {
+                if (challenge.endDate && new Date(challenge.endDate) < currentDate && challenge.status !== "completed") {
+                    const updatedChallenge = {
+                        ...challenge,
+                        status: "completed" as const,
+                    }
+                    return updatedChallenge
+                }
+                return challenge
+            })
+            
+            setChallenges(updatedChallenges)
             setGroup(groupData)
         } catch (error) {
             console.error("Error fetching group data:", error)

@@ -32,6 +32,32 @@ export async function createChallenge(challenge: Challenge) {
     return data;
 }
 
+export async function updateChallenge(challenge: Challenge) {
+    console.log("Updating challenge:", challenge);
+    const { data, error } = await supabase
+        .from("challenge")
+        .update({
+            title: challenge.title,
+            description: challenge.description,
+            start_date: challenge.startDate,
+            end_date: challenge.endDate,
+            points: challenge.points,
+            status: challenge.status
+        })
+        .eq("id", challenge.id)
+        .select()
+        .single();
+
+    console.log("Update challenge response:", data, error);
+
+    if (error) {
+        console.error("Error updating challenge:", error);
+        throw new Error(error.message);
+    }
+
+    return data;
+}
+
 
 export async function addVoteToChallenge(challengeId: string, userId: string, approved: boolean) {
     console.log("Adding vote to challenge:", { challengeId, userId, approved });
